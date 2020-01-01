@@ -41,7 +41,9 @@ from ..probe.pydapaccess import DAPAccess
 from ..probe.debug_probe import DebugProbe
 from ..coresight.ap import MEM_AP
 from ..core.target import Target
-from ..flash.loader import (FlashEraser, FlashLoader, FileProgrammer)
+from ..flash.loader import FlashLoader
+from ..flash.eraser import FlashEraser
+from ..flash.file_programmer import FileProgrammer
 from ..gdbserver.gdbserver import GDBServer
 from ..utility import (mask, conversion)
 from ..utility.cmdline import convert_session_options
@@ -66,22 +68,22 @@ LEVELS = {
         }
 
 CORE_STATUS_DESC = {
-        Target.TARGET_HALTED : "Halted",
-        Target.TARGET_RUNNING : "Running",
-        Target.TARGET_RESET : "Reset",
-        Target.TARGET_SLEEPING : "Sleeping",
-        Target.TARGET_LOCKUP : "Lockup",
+        Target.State.HALTED : "Halted",
+        Target.State.RUNNING : "Running",
+        Target.State.RESET : "Reset",
+        Target.State.SLEEPING : "Sleeping",
+        Target.State.LOCKUP : "Lockup",
         }
 
 VC_NAMES_MAP = {
-        Target.CATCH_HARD_FAULT : "hard fault",
-        Target.CATCH_BUS_FAULT : "bus fault",
-        Target.CATCH_MEM_FAULT : "memory fault",
-        Target.CATCH_INTERRUPT_ERR : "interrupt error",
-        Target.CATCH_STATE_ERR : "state error",
-        Target.CATCH_CHECK_ERR : "check error",
-        Target.CATCH_COPROCESSOR_ERR : "coprocessor error",
-        Target.CATCH_CORE_RESET : "core reset",
+        Target.VectorCatch.HARD_FAULT : "hard fault",
+        Target.VectorCatch.BUS_FAULT : "bus fault",
+        Target.VectorCatch.MEM_FAULT : "memory fault",
+        Target.VectorCatch.INTERRUPT_ERR : "interrupt error",
+        Target.VectorCatch.STATE_ERR : "state error",
+        Target.VectorCatch.CHECK_ERR : "check error",
+        Target.VectorCatch.COPROCESSOR_ERR : "coprocessor error",
+        Target.VectorCatch.CORE_RESET : "core reset",
         }
 
 HPROT_BIT_DESC = {
@@ -95,12 +97,12 @@ HPROT_BIT_DESC = {
         }
 
 WATCHPOINT_FUNCTION_NAME_MAP = {
-                        Target.WATCHPOINT_READ: 'r',
-                        Target.WATCHPOINT_WRITE: 'w',
-                        Target.WATCHPOINT_READ_WRITE: 'rw',
-                        'r': Target.WATCHPOINT_READ,
-                        'w': Target.WATCHPOINT_WRITE,
-                        'rw': Target.WATCHPOINT_READ_WRITE,
+                        Target.WatchpointType.READ: 'r',
+                        Target.WatchpointType.WRITE: 'w',
+                        Target.WatchpointType.READ_WRITE: 'rw',
+                        'r': Target.WatchpointType.READ,
+                        'w': Target.WatchpointType.WRITE,
+                        'rw': Target.WatchpointType.READ_WRITE,
                         }
 
 ## Default SWD clock in Hz.
@@ -115,8 +117,8 @@ COMMAND_INFO = {
             },
         'erase' : {
             'aliases' : [],
-            'args' : "ADDR [COUNT]",
-            'help' : "Erase internal flash sectors"
+            'args' : "[ADDR] [COUNT]",
+            'help' : "Erase internal flash sectors (performs mass erase if no arguments given)"
             },
         'unlock' :  {
             'aliases' : [],
@@ -919,7 +921,7 @@ class PyOCDCommander(object):
             self.target.reset_and_halt()
 
             status = self.target.get_state()
-            if status != Target.TARGET_HALTED:
+            if status != Target.State.HALTED:
                 print("Failed to halt device on reset")
             else:
                 print("Successfully halted device on reset")
@@ -1187,31 +1189,33 @@ class PyOCDCommander(object):
             self.target.flush()
 
     def handle_erase(self, args):
-        if len(args) < 1:
-            raise ToolError("invalid arguments")
-        addr = self.convert_value(args[0])
-        if len(args) < 2:
-            count = 1
+        if len(args) == 0:
+            eraser = FlashEraser(self.session, FlashEraser.Mode.MASS)
+            eraser.erase()
         else:
-            count = self.convert_value(args[1])
-        
-        eraser = FlashEraser(self.session, FlashEraser.Mode.SECTOR)
-        while count:
-            # Look up the flash region so we can get the page size.
-            region = self.session.target.memory_map.get_region_for_address(addr)
-            if not region:
-                print("address 0x%08x is not within a memory region" % addr)
-                break
-            if not region.is_flash:
-                print("address 0x%08x is not in flash" % addr)
-                break
-            
-            # Erase this page.
-            eraser.erase([addr])
-            
-            # Next page.
-            count -= 1
-            addr += region.blocksize
+            addr = self.convert_value(args[0])
+            if len(args) < 2:
+                count = 1
+            else:
+                count = self.convert_value(args[1])
+
+            eraser = FlashEraser(self.session, FlashEraser.Mode.SECTOR)
+            while count:
+                # Look up the flash region so we can get the page size.
+                region = self.session.target.memory_map.get_region_for_address(addr)
+                if not region:
+                    print("address 0x%08x is not within a memory region" % addr)
+                    break
+                if not region.is_flash:
+                    print("address 0x%08x is not in flash" % addr)
+                    break
+
+                # Erase this page.
+                eraser.erase([addr])
+
+                # Next page.
+                count -= 1
+                addr += region.blocksize
 
     def handle_unlock(self, args):
         # Currently the same as erase.
@@ -1221,15 +1225,15 @@ class PyOCDCommander(object):
     def handle_go(self, args):
         self.target.resume()
         status = self.target.get_state()
-        if status == Target.TARGET_RUNNING:
+        if status == Target.State.RUNNING:
             print("Successfully resumed device")
-        elif status == Target.TARGET_SLEEPING:
+        elif status == Target.State.SLEEPING:
             print("Device entered sleep")
-        elif status == Target.TARGET_LOCKUP:
+        elif status == Target.State.LOCKUP:
             print("Device entered lockup")
-        elif status == Target.TARGET_RESET:
+        elif status == Target.State.RESET:
             print("Device is being held in reset")
-        elif status == Target.TARGET_HALTED:
+        elif status == Target.State.HALTED:
             print("Device is halted; a debug event may have occurred")
         else:
             print("Unknown target status: %s" % status)
@@ -1248,7 +1252,7 @@ class PyOCDCommander(object):
         self.target.halt()
 
         status = self.target.get_state()
-        if status != Target.TARGET_HALTED:
+        if status != Target.State.HALTED:
             print("Failed to halt device; target state is %s" % CORE_STATUS_DESC[status])
             return 1
         else:
@@ -1302,7 +1306,7 @@ class PyOCDCommander(object):
             except KeyError:
                 raise ToolError("unsupported watchpoint type '%s'", args[1])
         else:
-            wptype = Target.WATCHPOINT_READ_WRITE
+            wptype = Target.Watchpoint.READ_WRITE
         if len(args) > 2:
             sz = self.convert_value(args[2])
             if sz not in (1, 2, 4):
@@ -1568,7 +1572,7 @@ class PyOCDCommander(object):
             print("Cores:        %d" % len(self.target.cores))
             for i, c in enumerate(self.target.cores):
                 core = self.target.cores[c]
-                print("Core %d type:  %s" % (i, coresight.cortex_m.CORE_TYPE_NAME[core.core_type]))
+                print("Core %d type:  %s" % (i, coresight.core_ids.CORE_TYPE_NAME[core.core_type]))
 
     def handle_show_map(self, args):
         pt = prettytable.PrettyTable(["Region", "Start", "End", "Size", "Access", "Sector", "Page"])

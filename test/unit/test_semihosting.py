@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2006-2015 Arm Limited
+# Copyright (c) 2006-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,12 +18,13 @@ import pytest
 import os
 import sys
 import logging
+from elapsedtimer import ElapsedTimer
+import telnetlib
+
 from pyocd.core.exceptions import TimeoutError
 from pyocd.core.helpers import ConnectHelper
 from pyocd.core.target import Target
 from pyocd.debug import semihost
-from elapsedtimer import ElapsedTimer
-import telnetlib
 
 @pytest.fixture(scope='module')
 def tgt(request):
@@ -76,7 +77,7 @@ def run_til_halt(tgt, semihostagent):
             while True:
                 if t.elapsed >= 2.0:
                     raise TimeoutError()
-                if tgt.get_state() == Target.TARGET_HALTED:
+                if tgt.get_state() == Target.State.HALTED:
                     logging.info("Target halted")
                     didHandle = semihostagent.check_and_handle_semihost_request()
                     if didHandle:
@@ -88,7 +89,7 @@ def run_til_halt(tgt, semihostagent):
             tgt.halt()
             return False
         finally:
-            assert tgt.get_state() == Target.TARGET_HALTED
+            assert tgt.get_state() == Target.State.HALTED
 
 NOP = 0x46c0
 BKPT_00 = 0xbe00
@@ -150,7 +151,7 @@ class SemihostRequestBuilder:
         self.semihostagent = agent
 
     def setup_semihost_request(self, rqnum):
-        assert self.tgt.get_state() == Target.TARGET_HALTED
+        assert self.tgt.get_state() == Target.State.HALTED
 
         self.ctx.write16(self.ramrgn.start, NOP)
         self.ctx.write16(self.ramrgn.start + 2, BKPT_AB)

@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2015 Arm Limited
+# Copyright (c) 2015-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,21 +15,25 @@
 # limitations under the License.
 from __future__ import print_function
 
-import os, sys
-from time import sleep, time
+import os
+import sys
+from time import (sleep, time)
 from random import randrange
 import traceback
 import argparse
 import logging
 
-parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, parentdir)
-
 from pyocd.core.helpers import ConnectHelper
 from pyocd.probe.pydapaccess import DAPAccess
 from pyocd.core.memory_map import MemoryType
 from pyocd.utility import conversion
-from test_util import (Test, TestResult, get_session_options, get_target_test_params)
+
+from test_util import (
+    Test,
+    TestResult,
+    get_session_options,
+    get_target_test_params
+    )
 
 _1MB = (1 * 1024 * 1024)
 
@@ -85,7 +89,7 @@ def speed_test(board_id):
         target_type = board.target_type
 
         memory_map = board.target.get_memory_map()
-        ram_region = memory_map.get_first_region_of_type(MemoryType.RAM)
+        ram_region = memory_map.get_default_region_of_type(MemoryType.RAM)
         rom_region = memory_map.get_boot_memory()
 
         # Limit region sizes used for performance testing to 1 MB. We don't really need to

@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2016 Arm Limited
+# Copyright (c) 2016-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pyocd.debug.cache import RegisterCache
+import pytest
+import logging
+
+from pyocd.cache.register import RegisterCache
 from pyocd.debug.context import DebugContext
 from pyocd.coresight.cortex_m import (
     CortexM,
@@ -26,8 +29,6 @@ from pyocd.coresight.cortex_m import (
 from pyocd.core import memory_map
 from pyocd.utility import conversion
 from pyocd.utility import mask
-import pytest
-import logging
 
 @pytest.fixture(scope='function')
 def regcache(mockcore):

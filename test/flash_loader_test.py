@@ -14,8 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from __future__ import print_function
-import argparse, os, sys
-from time import sleep, time
+
+import argparse
+import os
+import sys
+from time import (sleep, time)
 from random import randrange
 import math
 import struct
@@ -23,16 +26,15 @@ import traceback
 import argparse
 import logging
 
-parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, parentdir)
-
 from pyocd.core.helpers import ConnectHelper
 from pyocd.probe.pydapaccess import DAPAccess
 from pyocd.utility.conversion import float32_to_u32
 from pyocd.utility.mask import same
 from pyocd.utility.compatibility import to_str_safe
 from pyocd.core.memory_map import MemoryType
-from pyocd.flash.loader import (FileProgrammer, FlashEraser, FlashLoader)
+from pyocd.flash.loader import FlashLoader
+from pyocd.flash.file_programmer import FileProgrammer
+from pyocd.flash.eraser import FlashEraser
 from test_util import (
     Test,
     TestResult,
@@ -40,6 +42,8 @@ from test_util import (
     get_target_test_params,
     binary_to_hex_file
     )
+
+parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 addr = 0
 size = 0
@@ -135,7 +139,7 @@ def flash_loader_test(board_id):
         eraser = FlashEraser(session, FlashEraser.Mode.SECTOR)
         eraser.erase(["0x%x+0x%x" % (addr, boot_blocksize)])
         verify_data = target.read_memory_block8(addr, boot_blocksize)
-        if target.memory_map.get_region_for_address(addr).is_erased(verify_data):
+        if target.memory_map.get_region_for_address(addr).is_data_erased(verify_data):
             print("TEST PASSED")
             test_pass_count += 1
         else:

@@ -60,6 +60,8 @@ OPTIONS_INFO = {
     'pack': OptionInfo('pack', (str, list), None,
         "Path or list of paths to CMSIS Device Family Packs. Devices defined in the pack(s) are "
         "added to the list of available targets."),
+    'probe_all_aps': OptionInfo('scan_all_aps', bool, False,
+        "Controls whether all 256 ADIv5 AP addresses will be probed. Default is False."),
     'project_dir': OptionInfo('project_dir', str, None,
         "Path to the session's project directory. Defaults to the working directory when the pyocd "
         "tool was executed."),
@@ -111,4 +113,7 @@ OPTIONS_INFO = {
         "Base TCP port number for the semihosting telnet server."),
     'vector_catch': OptionInfo('vector_catch', str, 'h',
         "Enable vector catch sources."),
+    'xpsr_control_fields': OptionInfo('xpsr_control_fields', bool, False,
+        "When set to True, XPSR and CONTROL registers will have their respective bitfields defined "
+        "for presentation in gdb."),
     }

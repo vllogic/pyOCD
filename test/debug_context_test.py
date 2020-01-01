@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from __future__ import print_function
+
 import argparse
 import os
 import sys
@@ -25,22 +26,22 @@ import traceback
 import argparse
 import logging
 
-parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, parentdir)
-
 from pyocd.core.helpers import ConnectHelper
-from pyocd.flash.loader import FileProgrammer
+from pyocd.flash.file_programmer import FileProgrammer
 from pyocd.probe.pydapaccess import DAPAccess
 from pyocd.utility.conversion import float32_to_u32
 from pyocd.utility.mask import same
 from pyocd.utility.compatibility import to_str_safe
 from pyocd.core.memory_map import MemoryType
+
 from test_util import (
     Test,
     TestResult,
     get_session_options,
     get_target_test_params,
     )
+
+parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 GDB_TEST_BIN = "src/gdb_test_program/gdb_test.bin"
 GDB_TEST_ELF = "src/gdb_test_program/gdb_test.elf"
@@ -76,7 +77,7 @@ def debug_context_test(board_id):
 
         memory_map = target.get_memory_map()
         boot_region = memory_map.get_boot_memory()
-        ram_region = memory_map.get_first_region_of_type(MemoryType.RAM)
+        ram_region = memory_map.get_default_region_of_type(MemoryType.RAM)
         binary_file = os.path.join(parentdir, 'binaries', board.test_binary)
         gdb_test_binary_file = os.path.join(parentdir, GDB_TEST_BIN)
         gdb_test_elf_file = os.path.join(parentdir, GDB_TEST_ELF)

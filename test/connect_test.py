@@ -1,5 +1,5 @@
 # pyOCD debugger
-# Copyright (c) 2017-2018 Arm Limited
+# Copyright (c) 2017-2019 Arm Limited
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,30 +15,35 @@
 # limitations under the License.
 from __future__ import print_function
 
-import os, sys
+import os
+import sys
 import traceback
 import argparse
 from collections import namedtuple
 import logging
 
-parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, parentdir)
-
 from pyocd.core.helpers import ConnectHelper
 from pyocd.core.target import Target
-from pyocd.flash.loader import FileProgrammer
-from test_util import (Test, TestResult, get_session_options)
+from pyocd.flash.file_programmer import FileProgrammer
+
+from test_util import (
+    Test,
+    TestResult,
+    get_session_options,
+    )
+
+parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 STATE_NAMES = {
-    Target.TARGET_RUNNING : "running",
-    Target.TARGET_HALTED : "halted",
-    Target.TARGET_RESET : "reset",
-    Target.TARGET_SLEEPING : "sleeping",
-    Target.TARGET_LOCKUP : "lockup",
+    Target.State.RUNNING : "running",
+    Target.State.HALTED : "halted",
+    Target.State.RESET : "reset",
+    Target.State.SLEEPING : "sleeping",
+    Target.State.LOCKUP : "lockup",
     }
 
-RUNNING = Target.TARGET_RUNNING
-HALTED = Target.TARGET_HALTED
+RUNNING = Target.State.RUNNING
+HALTED = Target.State.HALTED
 
 class ConnectTestCase(object):
     def __init__(self, prev_exit_state, connect_mode, expected_state, disconnect_resume, exit_state):
@@ -102,7 +107,7 @@ def connect_test(board):
         # Accept sleeping for running, as a hack to work around nRF52840-DK test binary.
         # TODO remove sleeping hack.
         if (actualState == expected_state) \
-                or (expected_state == RUNNING and actualState == Target.TARGET_SLEEPING):
+                or (expected_state == RUNNING and actualState == Target.State.SLEEPING):
             passed = 1
             print("TEST PASSED")
         else:
@@ -136,7 +141,7 @@ def connect_test(board):
     live_board.target.reset()
     test_count += 1
     print("Verifying target is running")
-    if live_board.target.is_running() or live_board.target.get_state() == Target.TARGET_SLEEPING:
+    if live_board.target.is_running() or live_board.target.get_state() == Target.State.SLEEPING:
         test_pass_count += 1
         print("TEST PASSED")
     else:
